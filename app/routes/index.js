@@ -22,4 +22,20 @@ router.post('/upload', (req, res) => {
 
 })
 
+router.delete('/file', (req, res) => {
+  let form = new formidable.IncomingForm({
+    uploadDir: './upload',
+    keepExtensions: true
+  })
+
+  form.parse(req, (err, fields, files) => {
+
+    
+
+    res.json({
+      files
+    })
+  })
+})
+
 module.exports = router;
