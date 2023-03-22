@@ -44,22 +44,32 @@ class DropBoxController {
     this.getSelection().forEach((li) => {
       let file = JSON.parse(li.dataset.file);
       let key = li.dataset.key;
-      let formData = new FormData();
-      formData.append('path', file.path);
-      formData.append('key', key);
-      promises.push(this.ajax("/file", "DELETE", formData));
+      promises.push(new Promise((resolve, reject) => {
+        
+      }));
     });
     return Promise.all(promises);
+  }
+
+  removeFile() {
+    let fileRef = firebase.storage().ref(this.currentFolder.join('/')).child(file.name);
+      fileRef.delete().then(() => {
+        resolve({
+          fields: {
+            key: key
+          }
+        })
+      }).catch(err => {
+        reject(err);
+      });
   }
 
   initEvents() {
 
     this.btnNewFolder.addEventListener('click', e => {
       let name = prompt('Nome da nova pasta');
-
       if (name) {
         this.FirebaseRef().push().set({
-
           name,
           type: 'folder',
           path: this.currentFolder.join('/')
@@ -108,7 +118,12 @@ class DropBoxController {
       this.uploadTask(event.target.files)
         .then((responses) => {
           responses.forEach((resp) => {
-            this.getFirebaseRef().push().set(resp.files["input-file"]);
+            this.getFirebaseRef().push().set({
+              name: resp.name,
+              type: resp.contentType,
+              path: resp.downloadURLs[0],
+              size: resp.size
+            });
           });
 
           this.uploadComplete();
@@ -170,18 +185,25 @@ class DropBoxController {
     let promises = [];
 
     [...files].forEach((file) => {
-
-      let formData = new FormData();
-
-      formData.append("input-file", file);
-
-      let promise = this.ajax("/upload", "POST", formData, () => {
-        this.uploadProgress(event, file);
-      }, () => {
-        this.startUploadTime = Date.now();
-      });
-
-      promises.push(promise);
+      promises.push(new Promise((resolve, reject) => {
+        let fileRef = firebase.storage().ref(this.currentFolder.join('/')).child(file.name);
+        let task = fileRef.put(file);
+  
+        task.on('state_changed', snapshot=> {
+          this.uploadProgress({
+            loaded: snapshot.bytesTransferred,
+            total: snapshot.totalBytes
+          }, file);
+        }, error => {
+          reject(error);
+        }, () => {
+          fileRef.getMetadata().then(metadata => {
+            resolve(metadata);
+          }).catch(err => {
+            reject(err);
+          });
+        });
+      }));
     });
 
     return Promise.all(promises);
